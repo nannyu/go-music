@@ -1129,9 +1129,11 @@ const QR_LOGIN_SOURCE_LABELS = {
     bilibili: 'Bilibili',
     soda: '汽水音乐'
 };
-
 const QR_LOGIN_COOKIE_SOURCES = {
     qq_wx: 'qq'
+};
+const QR_LOGIN_POLL_INTERVAL_MS = {
+    soda: 7000
 };
 
 let qrLoginState = {
@@ -1144,7 +1146,10 @@ let qrLoginState = {
     sms: {
         encryptUID: '',
         verifyParams: '',
-        codeSent: false
+        codeSent: false,
+        mode: '',
+        upSMSMobile: '',
+        upSMSContent: ''
     }
 };
 
@@ -1193,6 +1198,7 @@ function resetQRLoginSMSView() {
         }
         input.value = '';
         input.disabled = false;
+        input.style.display = '';
     }
     if (sendBtn) {
         sendBtn.disabled = false;
@@ -1200,6 +1206,7 @@ function resetQRLoginSMSView() {
     }
     if (validateBtn) {
         validateBtn.disabled = false;
+        validateBtn.style.display = '';
         validateBtn.textContent = '确认登录';
     }
 }
@@ -1255,7 +1262,7 @@ function startQRLogin(source) {
         pollTimer: 0,
         pollBusy: false,
         smsBusy: false,
-        sms: { encryptUID: '', verifyParams: '', codeSent: false }
+        sms: { encryptUID: '', verifyParams: '', codeSent: false, mode: '', upSMSMobile: '', upSMSContent: '' }
     };
     const modal = document.getElementById('qrLoginModal');
     if (modal) modal.style.display = 'flex';
@@ -1274,8 +1281,13 @@ function startQRLogin(source) {
             qrLoginState.baseKey = qrLoginState.key;
             renderQRLoginSession(session);
             setQRLoginStatus(source === 'qq_wx' ? '二维码已生成，请打开微信扫码' : '二维码已生成，请打开 App 扫码');
-            pollQRLogin();
-            qrLoginState.pollTimer = window.setInterval(pollQRLogin, 2200);
+            const pollInterval = QR_LOGIN_POLL_INTERVAL_MS[source] || 2200;
+            if (source === 'soda') {
+                qrLoginState.pollTimer = window.setInterval(pollQRLogin, pollInterval);
+            } else {
+                pollQRLogin();
+                qrLoginState.pollTimer = window.setInterval(pollQRLogin, pollInterval);
+            }
         })
         .catch(error => {
             setQRLoginLoading(false);
@@ -1333,10 +1345,16 @@ function handleQRLoginSuccess(result) {
 function showSodaSMSLogin(result) {
     clearQRLoginPoll();
     const extra = qrLoginResultExtra(result);
+    const upSMSMobile = String(extra.up_sms_mobile || '').trim();
+    const upSMSContent = String(extra.up_sms_content || '').trim();
+    const smsMode = qrLoginExtraFlag(extra, 'need_user_sms') || String(extra.sms_mode || '').toLowerCase() === 'up' || upSMSMobile || upSMSContent ? 'up' : '';
     qrLoginState.sms = {
         encryptUID: String(extra.encrypt_uid || qrLoginState.sms.encryptUID || ''),
         verifyParams: String(extra.verify_params || qrLoginState.sms.verifyParams || ''),
-        codeSent: qrLoginExtraFlag(extra, 'need_sms_code') || qrLoginState.sms.codeSent
+        codeSent: qrLoginExtraFlag(extra, 'need_sms_code') || qrLoginState.sms.codeSent,
+        mode: smsMode || qrLoginState.sms.mode || '',
+        upSMSMobile: upSMSMobile || qrLoginState.sms.upSMSMobile || '',
+        upSMSContent: upSMSContent || qrLoginState.sms.upSMSContent || ''
     };
     const panel = document.getElementById('qrLoginSMSPanel');
     const input = document.getElementById('qrLoginSMSCode');
@@ -1347,16 +1365,27 @@ function showSodaSMSLogin(result) {
     if (validateBtn) validateBtn.disabled = false;
 
     const mobile = String(extra.mobile || '').trim();
+    if (qrLoginState.sms.mode === 'up') {
+        if (input) {
+            input.value = '';
+            input.disabled = true;
+            input.style.display = 'none';
+        }
+        if (validateBtn) validateBtn.style.display = 'none';
+        if (sendBtn) sendBtn.textContent = '我已发送';
+        const target = qrLoginState.sms.upSMSMobile || '指定号码';
+        const content = qrLoginState.sms.upSMSContent || '指定内容';
+        const from = mobile ? `请使用绑定手机号 ${mobile} ` : '请使用绑定手机号 ';
+        setQRLoginStatus(`${from}发送短信 ${content} 到 ${target}，发送后点击“我已发送”`, 'warning');
+        return;
+    }
     if (qrLoginState.sms.codeSent) {
         setQRLoginStatus(mobile ? `验证码已发送至 ${mobile}，请输入后确认` : '验证码已发送，请输入后确认', 'warning');
         if (input) input.focus();
         return;
     }
 
-    // Match official Soda PC client: auto-send the SMS code as soon as MFA
-    // is requested so the user does not have to click an extra button.
-    setQRLoginStatus(mobile ? `扫码成功，正在向 ${mobile} 发送验证码...` : '扫码成功，正在发送验证码...', 'warning');
-    sendSodaSMSCode();
+    setQRLoginStatus(mobile ? `扫码成功，请点击发送验证码到 ${mobile}` : '扫码成功，请点击发送验证码', 'warning');
 }
 
 function sodaSMSActionKey(action, code = '') {
@@ -1382,7 +1411,8 @@ function fetchQRLoginCheck(source, key) {
 
 function sendSodaSMSCode() {
     if (qrLoginState.source !== 'soda' || qrLoginState.smsBusy) return;
-    const key = sodaSMSActionKey('send_code');
+    const isUpSMS = qrLoginState.sms.mode === 'up';
+    const key = sodaSMSActionKey(isUpSMS ? 'up_sms' : 'send_code');
     if (!key) {
         setQRLoginStatus('缺少短信验证参数，请刷新二维码重试', 'error');
         return;
@@ -1392,9 +1422,9 @@ function sendSodaSMSCode() {
     const sendBtn = document.getElementById('qrLoginSendSMSBtn');
     if (sendBtn) {
         sendBtn.disabled = true;
-        sendBtn.textContent = '发送中...';
+        sendBtn.textContent = isUpSMS ? '确认中...' : '发送中...';
     }
-    setQRLoginStatus('正在发送验证码...');
+    setQRLoginStatus(isUpSMS ? '正在确认上行短信...' : '正在发送验证码...');
 
     fetchQRLoginCheck('soda', key)
         .then(result => {
@@ -1404,19 +1434,19 @@ function sendSodaSMSCode() {
                 return;
             }
             if (status === 'failed') {
-                setQRLoginStatus(String(result.message || '').trim() || '验证码发送失败', 'error');
+                setQRLoginStatus(String(result.message || '').trim() || (isUpSMS ? '上行短信确认失败' : '验证码发送失败'), 'error');
                 return;
             }
             showSodaSMSLogin(result);
         })
         .catch(error => {
-            setQRLoginStatus(error.message || '验证码发送失败', 'error');
+            setQRLoginStatus(error.message || (isUpSMS ? '上行短信确认失败' : '验证码发送失败'), 'error');
         })
         .finally(() => {
             qrLoginState.smsBusy = false;
             if (sendBtn) {
                 sendBtn.disabled = false;
-                sendBtn.textContent = '重新发送';
+                sendBtn.textContent = isUpSMS ? '我已发送' : '重新发送';
             }
         });
 }
