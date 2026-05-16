@@ -21,7 +21,6 @@ import (
 const githubRequestTimeout = 8 * time.Second
 
 var githubAPIBaseURL = "https://api.github.com"
-var openBrowserForUpdate = core.OpenBrowser
 
 type githubRelease struct {
 	TagName string `json:"tag_name"`
@@ -78,25 +77,6 @@ func RegisterUpdateRoutes(api *gin.RouterGroup) {
 			return
 		}
 		c.JSON(http.StatusOK, result)
-	})
-
-	api.GET("/app_update/open", func(c *gin.Context) {
-		target := strings.TrimSpace(c.Query("url"))
-		if target == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "missing url"})
-			return
-		}
-		parsed, err := url.Parse(target)
-		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url"})
-			return
-		}
-		if parsed.Scheme != "http" && parsed.Scheme != "https" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "url must be http(s)"})
-			return
-		}
-		openBrowserForUpdate(target)
-		c.JSON(http.StatusOK, gin.H{"ok": true, "url": target})
 	})
 
 	api.GET("/github_proxy/test", func(c *gin.Context) {

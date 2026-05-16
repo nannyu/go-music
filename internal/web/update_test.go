@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -71,65 +70,5 @@ func TestUpdateCheckRouteUsesGitHubReleaseResponse(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("update response missing %q: %s", want, body)
 		}
-	}
-}
-
-func TestAppUpdateOpenRouteCallsBrowser(t *testing.T) {
-	originalOpener := openBrowserForUpdate
-	t.Cleanup(func() { openBrowserForUpdate = originalOpener })
-
-	var (
-		mu       sync.Mutex
-		captured []string
-	)
-	openBrowserForUpdate = func(url string) {
-		mu.Lock()
-		defer mu.Unlock()
-		captured = append(captured, url)
-	}
-
-	gin.SetMode(gin.TestMode)
-	router := gin.New()
-	RegisterUpdateRoutes(router.Group(RoutePrefix))
-
-	target := "https://github.com/guohuiyuan/go-music-dl/releases/latest"
-	req := httptest.NewRequest(http.MethodGet, RoutePrefix+"/app_update/open?url="+target, nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200, body=%s", rec.Code, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), `"ok":true`) {
-		t.Fatalf("open response missing ok=true: %s", rec.Body.String())
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if len(captured) != 1 || captured[0] != target {
-		t.Fatalf("captured open URLs = %v, want [%q]", captured, target)
-	}
-}
-
-func TestAppUpdateOpenRouteRejectsInvalidURL(t *testing.T) {
-	originalOpener := openBrowserForUpdate
-	t.Cleanup(func() { openBrowserForUpdate = originalOpener })
-
-	called := false
-	openBrowserForUpdate = func(string) { called = true }
-
-	gin.SetMode(gin.TestMode)
-	router := gin.New()
-	RegisterUpdateRoutes(router.Group(RoutePrefix))
-
-	for _, raw := range []string{"", "javascript:alert(1)", "ftp://example.com/file"} {
-		req := httptest.NewRequest(http.MethodGet, RoutePrefix+"/app_update/open?url="+raw, nil)
-		rec := httptest.NewRecorder()
-		router.ServeHTTP(rec, req)
-		if rec.Code == http.StatusOK {
-			t.Fatalf("expected non-200 for %q, got %d", raw, rec.Code)
-		}
-	}
-	if called {
-		t.Fatal("openBrowserForUpdate should not be called for invalid URLs")
 	}
 }

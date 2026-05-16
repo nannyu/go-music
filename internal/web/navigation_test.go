@@ -109,8 +109,11 @@ func TestAppJSIncludesAjaxNavigationEntryPoints(t *testing.T) {
 	if !strings.Contains(js, "async function openLatestUpdatePage(target = 'download')") {
 		t.Fatal("app.js missing openLatestUpdatePage helper")
 	}
-	if !strings.Contains(js, "/app_update/open?url=") {
-		t.Fatal("app.js missing /app_update/open call")
+	if !strings.Contains(js, "function openClientExternalURL(url, popup = null)") {
+		t.Fatal("app.js missing client-side external opener")
+	}
+	if strings.Contains(js, "/app_update/open?url=") {
+		t.Fatal("app.js should not ask the server to open release pages")
 	}
 	if strings.Contains(js, "/app_update/install_link") {
 		t.Fatal("app.js should no longer reference removed install_link API")

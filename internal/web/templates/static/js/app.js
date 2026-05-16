@@ -2169,11 +2169,51 @@ function proxiedGithubURL(rawURL, proxyURL, enabled) {
     return `${(proxyURL || '').replace(/\/$/, '')}/${rawURL}`;
 }
 
+function desktopExternalOpenCallback() {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.callback && typeof globalThis.callback.musicDlOpenDownload === 'function') {
+            return globalThis.callback.musicDlOpenDownload;
+        }
+    } catch (_) {
+    }
+    return null;
+}
+
+function openClientExternalURL(url, popup = null) {
+    const callback = desktopExternalOpenCallback();
+    if (callback) {
+        callback(url);
+        if (popup && !popup.closed) {
+            popup.close();
+        }
+        return true;
+    }
+
+    if (popup && !popup.closed) {
+        try {
+            popup.opener = null;
+        } catch (_) {
+        }
+        popup.location.href = url;
+        return true;
+    }
+
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    if (opened) {
+        return true;
+    }
+
+    window.location.href = url;
+    return false;
+}
+
 async function openLatestUpdatePage(target = 'download') {
     const modal = document.getElementById('appUpdateModal');
     const repoURL = webSettings.updateRepoUrl || DEFAULT_UPDATE_REPO_URL;
     const proxyEnabled = !!webSettings.githubProxyEnabled;
     const proxyURL = webSettings.githubProxyUrl || DEFAULT_GITHUB_PROXY_URL;
+    const callback = desktopExternalOpenCallback();
+    const popup = callback ? null : window.open('about:blank', '_blank');
 
     let downloadURL = modal?.dataset.rawDownloadUrl || '';
     let releaseURL = modal?.dataset.releaseUrl || '';
@@ -2199,29 +2239,14 @@ async function openLatestUpdatePage(target = 'download') {
         ? (releaseURL || downloadURL)
         : (downloadURL || releaseURL);
     if (!url) {
+        if (popup && !popup.closed) {
+            popup.close();
+        }
         showToast('无法打开下载页', '没有可用的 GitHub 链接', 'error');
         return;
     }
     url = proxiedGithubURL(url, proxyURL, proxyEnabled);
-
-    try {
-        const response = await fetch(`${API_ROOT}/app_update/open?url=${encodeURIComponent(url)}`);
-        const payload = await response.json().catch(() => null);
-        if (response.ok && payload && payload.ok) {
-            return;
-        }
-    } catch (_) {
-    }
-
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis.callback && typeof globalThis.callback.musicDlOpenDownload === 'function') {
-            globalThis.callback.musicDlOpenDownload(url);
-            return;
-        }
-    } catch (_) {
-    }
-
-    window.open(url, '_blank', 'noopener,noreferrer');
+    openClientExternalURL(url, popup);
 }
 
 function openCookieModal() {
