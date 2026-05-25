@@ -1,6 +1,6 @@
 services:
   music-dl:
-    image: nannyu/go-music-dl:latest
+    image: neonn128/go-music-dl:latest
     container_name: music-dl
     restart: unless-stopped
     ports:
