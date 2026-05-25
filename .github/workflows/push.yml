@@ -29,7 +29,7 @@ jobs:
         uses: golangci/golangci-lint-action@v7
         with:
           version: v2.12.2
-          args: ./cmd/music-dl ./core ./internal/... ./winres/...
+          args: --new-from-rev=HEAD~1 ./cmd/music-dl ./core ./internal/... ./winres/...
 
       - name: Commit back
         if: ${{ !github.head_ref }}
