@@ -99,6 +99,9 @@ input[type="password"]:focus { border-color: #10b981; background: #fff; box-shad
 .ctrl-btn:hover { background: #edf2f7; color: #10b981; }
 .ctrl-btn.primary { background: #f7f9ff; color: #10b981; border: 1px solid #dbe3ff; padding: 6px 12px; font-weight: 600; border-radius: 999px; }
 .ctrl-btn.primary:hover { background: #eff3ff; }
+.song-sort-control { display: inline-flex; align-items: center; gap: 6px; padding: 4px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: var(--shadow); }
+.song-sort-control select { border: none; background: transparent; color: var(--text-main); font-size: 13px; font-weight: 600; outline: none; cursor: pointer; padding: 4px 2px; }
+.song-sort-control .sort-dir-btn { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #edf2f7; border-radius: 6px; }
 
 .source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .source-selector.is-collapsed .source-grid { display: none; }
