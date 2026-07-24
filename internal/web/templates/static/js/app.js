@@ -1091,6 +1091,7 @@ function initializePageContent(root = document) {
   initSourceSelectorCollapse(root);
   bindSearchForm(root);
   bindSongSortControls(root);
+  bindSongListTools(root);
 
   const initialTypeEl = root.querySelector('input[name="type"]:checked');
   if (initialTypeEl) {
@@ -1105,6 +1106,40 @@ function initializePageContent(root = document) {
   syncMediaSession();
   initializeLocalMusicPage(root);
   scheduleBatchLocalMusicMatch();
+}
+
+function setSongListToolsOpen(tools, isOpen) {
+  if (!tools) return;
+  const trigger = tools.querySelector(".song-list-tools-trigger");
+  const popover = tools.querySelector(".song-list-tools-popover");
+  if (!trigger || !popover) return;
+  popover.hidden = !isOpen;
+  trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+}
+
+function closeSongListTools() {
+  document.querySelectorAll(".song-list-tools").forEach((tools) => {
+    setSongListToolsOpen(tools, false);
+  });
+}
+
+function toggleSongListTools(event) {
+  event?.stopPropagation();
+  const tools = event?.currentTarget?.closest(".song-list-tools");
+  if (!tools) return;
+  const popover = tools.querySelector(".song-list-tools-popover");
+  const isOpen = popover ? !popover.hidden : false;
+  closeSongListTools();
+  setSongListToolsOpen(tools, !isOpen);
+}
+
+function bindSongListTools(root = document) {
+  const scope = root && typeof root.querySelectorAll === "function" ? root : document;
+  scope.querySelectorAll(".song-list-tools").forEach((tools) => {
+    if (tools.dataset.bound === "1") return;
+    tools.dataset.bound = "1";
+    setSongListToolsOpen(tools, false);
+  });
 }
 
 function shouldHandleInternalNavigation(link, event) {
@@ -1159,6 +1194,23 @@ function shouldHandleInternalNavigation(link, event) {
   );
 }
 
+function syncRightToolbar(nextDoc, currentContainer) {
+  const currentToolbar = document.querySelector(".right-toolbar");
+  const nextToolbar = nextDoc.querySelector(".right-toolbar");
+
+  if (!nextToolbar) {
+    if (currentToolbar) currentToolbar.remove();
+    return;
+  }
+
+  // 搜索页之间保持现有工具栏，避免重建认证状态；从详情页返回时再补回。
+  if (!currentToolbar && currentContainer) {
+    currentContainer.before(nextToolbar.cloneNode(true));
+    bindAuthFloat();
+    refreshAuthFloat();
+  }
+}
+
 async function navigateTo(url, options = {}) {
   let targetURL;
   try {
@@ -1204,6 +1256,7 @@ async function navigateTo(url, options = {}) {
     }
 
     currentContainer.innerHTML = nextContainer.innerHTML;
+    syncRightToolbar(nextDoc, currentContainer);
     defaultDocumentTitle = nextDoc.title || defaultDocumentTitle;
     document.title = defaultDocumentTitle;
 
@@ -1367,6 +1420,12 @@ function bindPageNavigationEvents() {
     await handleDownloadClick(link);
   });
 
+  document.addEventListener("click", function (event) {
+    if (!event.target.closest(".song-list-tools")) {
+      closeSongListTools();
+    }
+  });
+
   document.addEventListener(
     "click",
     function (event) {
@@ -1381,6 +1440,9 @@ function bindPageNavigationEvents() {
 
   document.addEventListener("keydown", handlePaginationShortcut);
   document.addEventListener("keydown", handlePlaybackShortcut);
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") closeSongListTools();
+  });
 
   window.addEventListener("popstate", function () {
     navigateTo(window.location.href, {
@@ -2122,53 +2184,39 @@ async function refreshLocalMusicPageAfterMutation() {
 }
 
 function showDuplicateModal(groups, loading) {
-  // 移除旧弹窗
   const old = document.getElementById("duplicate-modal-overlay");
   if (old) old.remove();
 
   const overlay = document.createElement("div");
   overlay.id = "duplicate-modal-overlay";
-  overlay.style.cssText =
-    "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px;";
+  overlay.className = "modal-overlay utility-modal-overlay is-open";
   overlay.onclick = (e) => {
     if (e.target === overlay) overlay.remove();
   };
 
   const modal = document.createElement("div");
-  modal.style.cssText =
-    "background:#fff;border-radius:16px;width:100%;max-width:640px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);";
-
-  // Header
+  modal.className = "modal utility-modal duplicate-modal";
   const header = document.createElement("div");
-  header.style.cssText =
-    "display:flex;align-items:center;padding:20px 24px 16px;border-bottom:1px solid #eee;";
-  header.innerHTML =
-    '<h3 style="margin:0;font-size:17px;color:#c45500;"><i class="fa-solid fa-triangle-exclamation"></i> 重复歌曲检测</h3>';
-  const closeBtn = document.createElement("button");
-  closeBtn.type = "button";
-  closeBtn.textContent = "✕";
-  closeBtn.style.cssText =
-    "margin-left:auto;font-size:18px;background:none;border:none;cursor:pointer;color:#999;padding:4px 8px;";
-  closeBtn.onclick = () => overlay.remove();
-  header.appendChild(closeBtn);
+  header.className = "modal-header";
+  header.innerHTML = [
+    '<div><h3><i class="fa-solid fa-triangle-exclamation"></i> 重复歌曲检测</h3><p class="utility-modal-subtitle">按歌曲名和歌手聚合本地音乐</p></div>',
+    '<button type="button" class="modal-close" aria-label="关闭重复检测"><i class="fa-solid fa-xmark"></i></button>',
+  ].join("");
+  header.querySelector(".modal-close")?.addEventListener("click", () => overlay.remove());
   modal.appendChild(header);
 
-  // Body
   const body = document.createElement("div");
-  body.style.cssText = "overflow-y:auto;padding:16px 24px;flex:1;";
+  body.className = "modal-body duplicate-content";
 
   if (loading) {
-    body.innerHTML =
-      '<div style="text-align:center;padding:40px;color:#999;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><p style="margin-top:12px;">正在扫描...</p></div>';
+    body.innerHTML = '<div class="duplicate-state is-loading"><div><i class="fa-solid fa-spinner fa-spin"></i><br>正在扫描本地音乐...</div></div>';
   } else if (!groups || groups.length === 0) {
-    body.innerHTML =
-      '<div style="text-align:center;padding:40px;color:#10b981;"><i class="fa-solid fa-circle-check fa-2x"></i><p style="margin-top:12px;">未发现重复歌曲 🎉</p></div>';
+    body.innerHTML = '<div class="duplicate-state is-clean"><div><i class="fa-solid fa-circle-check"></i><br>未发现重复歌曲</div></div>';
   } else {
     groups.forEach((g, gi) => {
       const gp = document.createElement("div");
-      gp.style.cssText =
-        "margin-bottom:14px;padding:12px;background:#fff8f0;border:1px solid #f0d5a0;border-radius:8px;";
-      gp.innerHTML = `<div style="font-weight:600;margin-bottom:8px;">${gi + 1}. ${escapeHTML(g.name)} — ${escapeHTML(g.artist)}</div>`;
+      gp.className = "duplicate-group";
+      gp.innerHTML = `<div class="duplicate-group-title">${gi + 1}. ${escapeHTML(g.name)} · ${escapeHTML(g.artist)}</div>`;
 
       g.songs.forEach((s) => {
         const sizeStr = s.size ? (s.size / 1048576).toFixed(1) + "MB" : "?";
@@ -2178,15 +2226,14 @@ function showDuplicateModal(groups, loading) {
             String(s.duration % 60).padStart(2, "0")
           : "?";
         const row = document.createElement("div");
-        row.style.cssText =
-          "display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 8px;background:#fff;border-radius:4px;margin-bottom:3px;";
-        row.innerHTML = `<span style="flex:1;color:#555;">${s.ext || "?"} · ${sizeStr} · ${durStr}</span>`;
+        row.className = "duplicate-row";
+        row.innerHTML = `<span class="duplicate-meta">${escapeHTML(s.ext || "?")} · ${sizeStr} · ${durStr}</span><span class="duplicate-actions"></span>`;
+        const actions = row.querySelector(".duplicate-actions");
 
         const playBtn = document.createElement("button");
         playBtn.type = "button";
-        playBtn.style.cssText =
-          "font-size:11px;padding:2px 8px;background:#10b981;color:#fff;border:none;border-radius:4px;cursor:pointer;";
-        playBtn.textContent = "播放";
+        playBtn.className = "btn-pill btn-pill-primary";
+        playBtn.innerHTML = '<i class="fa-solid fa-play"></i> 播放';
         playBtn.onclick = () => {
           ap.list.clear();
           ap.list.add([
@@ -2207,9 +2254,8 @@ function showDuplicateModal(groups, loading) {
 
         const delBtn = document.createElement("button");
         delBtn.type = "button";
-        delBtn.style.cssText =
-          "font-size:11px;padding:2px 8px;background:#e53e3e;color:#fff;border:none;border-radius:4px;cursor:pointer;";
-        delBtn.textContent = "删除";
+        delBtn.className = "btn-pill btn-pill-danger";
+        delBtn.innerHTML = '<i class="fa-solid fa-trash"></i> 删除';
         delBtn.onclick = async () => {
           if (!confirm(`确定删除 "${s.name}"?`)) return;
           const originalHTML = delBtn.innerHTML;
@@ -2230,8 +2276,8 @@ function showDuplicateModal(groups, loading) {
           }
         };
 
-        row.appendChild(playBtn);
-        row.appendChild(delBtn);
+        actions.appendChild(playBtn);
+        actions.appendChild(delBtn);
         gp.appendChild(row);
       });
       body.appendChild(gp);
@@ -3206,30 +3252,33 @@ async function openDownloadRecordsModal() {
     }
 
     if (records.length === 0) {
-      if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-sub);">暂无下载记录</div>';
+      if (listEl) listEl.innerHTML = '<div class="download-records-empty"><div><i class="fa-regular fa-clock"></i><br>暂无下载记录</div></div>';
       return;
     }
 
-    let html = `<table class="download-records-table" style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead><tr style="background:var(--bg-sub);">
-        <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border-color);">歌曲</th>
-        <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border-color);">歌手</th>
-        <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border-color);">来源</th>
-        <th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border-color);">状态</th>
-        <th style="padding:8px 10px;text-align:right;border-bottom:1px solid var(--border-color);">时间</th>
+    let html = `<table class="download-records-table">
+      <thead><tr>
+        <th>歌曲</th>
+        <th>歌手</th>
+        <th>来源</th>
+        <th>状态</th>
+        <th>时间</th>
       </tr></thead><tbody>`;
 
     for (const r of records) {
-      const statusIcon = r.Status === "success" ? "✅" : r.Status === "skipped" ? "⏭️" : "❌";
-      const statusClass = r.Status === "failed" ? "color:#e53e3e;" : "";
+      const status = r.Status === "success"
+        ? { className: "is-success", icon: "fa-check", label: "成功" }
+        : r.Status === "skipped"
+          ? { className: "is-skipped", icon: "fa-forward", label: "跳过" }
+          : { className: "is-failed", icon: "fa-xmark", label: "失败" };
       const errHint = r.Error ? ` title="${escapeHtml(r.Error)}"` : "";
       const time = r.CreatedAt ? new Date(r.CreatedAt).toLocaleString() : "";
-      html += `<tr${errHint} style="border-bottom:1px solid var(--border-color);">
-        <td style="padding:6px 10px;">${escapeHtml(r.Name || "")}</td>
-        <td style="padding:6px 10px;">${escapeHtml(r.Artist || "")}</td>
-        <td style="padding:6px 10px;">${escapeHtml(r.Source || "")}</td>
-        <td style="padding:6px 10px;text-align:center;${statusClass}">${statusIcon}</td>
-        <td style="padding:6px 10px;text-align:right;white-space:nowrap;color:var(--text-sub);font-size:12px;">${time}</td>
+      html += `<tr${errHint}>
+        <td><div class="download-record-name">${escapeHtml(r.Name || "")}</div></td>
+        <td><div class="download-record-artist">${escapeHtml(r.Artist || "")}</div></td>
+        <td><span class="download-record-source">${escapeHtml(r.Source || "")}</span></td>
+        <td><span class="download-record-status ${status.className}"><i class="fa-solid ${status.icon}"></i>${status.label}</span></td>
+        <td class="download-record-time">${escapeHtml(time)}</td>
       </tr>`;
     }
 
@@ -3237,7 +3286,7 @@ async function openDownloadRecordsModal() {
     if (listEl) listEl.innerHTML = html;
   } catch (err) {
     if (countEl) countEl.textContent = "加载失败";
-    if (listEl) listEl.innerHTML = `<div style="text-align:center;padding:20px;color:#e53e3e;">加载失败: ${err.message}</div>`;
+    if (listEl) listEl.innerHTML = `<div class="download-records-error">加载失败: ${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -3255,10 +3304,172 @@ async function clearDownloadRecords() {
     const countEl = document.getElementById("download-records-count");
     const listEl = document.getElementById("download-records-list");
     if (countEl) countEl.textContent = "已清空";
-    if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-sub);">暂无下载记录</div>';
+    if (listEl) listEl.innerHTML = '<div class="download-records-empty"><div><i class="fa-regular fa-clock"></i><br>暂无下载记录</div></div>';
   } catch (err) {
     alert("清空失败: " + err.message);
   }
+}
+
+const PLAYBACK_HISTORY_STORAGE_KEY = "musicdl:playback-history";
+const PLAYBACK_HISTORY_LIMIT = 100;
+let activePlaybackHistoryEntries = [];
+let lastPlaybackHistoryKey = "";
+let lastPlaybackHistoryAt = 0;
+
+function readPlaybackHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PLAYBACK_HISTORY_STORAGE_KEY) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry) => entry && entry.name && entry.source && entry.id)
+      .slice(0, PLAYBACK_HISTORY_LIMIT);
+  } catch (_) {
+    return [];
+  }
+}
+
+function writePlaybackHistory(entries) {
+  try {
+    localStorage.setItem(
+      PLAYBACK_HISTORY_STORAGE_KEY,
+      JSON.stringify(entries.slice(0, PLAYBACK_HISTORY_LIMIT)),
+    );
+  } catch (_) {
+    // 本地存储不可用时，播放本身不受影响。
+  }
+}
+
+function playbackHistoryKey(entry) {
+  return `${entry.source}\u0000${entry.id}`;
+}
+
+function rememberPlaybackHistory(audio) {
+  const id = String(getPlaybackCardID(audio) || "").trim();
+  const source = String(audio?.source || "").trim();
+  const name = String(audio?.name || "").trim();
+  if (!id || !source || !name) return;
+
+  const now = Date.now();
+  const entry = {
+    id,
+    source,
+    name,
+    artist: String(audio?.artist || "").trim(),
+    album: String(audio?.album || "").trim(),
+    cover: String(audio?.cover || "").trim(),
+    duration: Number(audio?.duration || 0) || 0,
+    extra: typeof audio?.extra === "string" ? audio.extra : serializeSongExtra(audio?.extra),
+    playedAt: now,
+  };
+  const key = playbackHistoryKey(entry);
+  if (key === lastPlaybackHistoryKey && now - lastPlaybackHistoryAt < 10_000) {
+    return;
+  }
+  lastPlaybackHistoryKey = key;
+  lastPlaybackHistoryAt = now;
+
+  const records = readPlaybackHistory().filter(
+    (item) => playbackHistoryKey(item) !== key,
+  );
+  records.unshift(entry);
+  writePlaybackHistory(records);
+}
+
+function formatPlaybackHistoryTime(value) {
+  const date = new Date(Number(value || 0));
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString();
+}
+
+function renderPlaybackHistory() {
+  const countEl = document.getElementById("playback-history-count");
+  const listEl = document.getElementById("playback-history-list");
+  if (!listEl) return;
+
+  activePlaybackHistoryEntries = readPlaybackHistory();
+  if (countEl) {
+    countEl.textContent = activePlaybackHistoryEntries.length
+      ? `最近播放 ${activePlaybackHistoryEntries.length} 首`
+      : "暂无播放记录";
+  }
+
+  if (activePlaybackHistoryEntries.length === 0) {
+    listEl.innerHTML = '<div class="utility-empty-state"><div><i class="fa-regular fa-clock"></i><br>开始播放歌曲后，记录会显示在这里</div></div>';
+    return;
+  }
+
+  listEl.innerHTML = activePlaybackHistoryEntries
+    .map((entry, index) => {
+      const cover = entry.cover
+        ? `<img src="${escapeHTML(entry.cover)}" alt="">`
+        : '<i class="fa-solid fa-music"></i>';
+      const artist = escapeHTML(entry.artist || "未知歌手");
+      return `<div class="playback-history-item">
+        <div class="playback-history-cover">${cover}</div>
+        <div class="playback-history-main">
+          <div class="playback-history-name">${escapeHTML(entry.name)}</div>
+          <div class="playback-history-meta">${artist}</div>
+          <div class="playback-history-time">${escapeHTML(formatPlaybackHistoryTime(entry.playedAt))}</div>
+        </div>
+        <button type="button" class="playback-history-play" onclick="playPlaybackHistoryItem(${index})"><i class="fa-solid fa-play"></i> 播放</button>
+      </div>`;
+    })
+    .join("");
+}
+
+function openPlaybackHistoryModal() {
+  const modal = document.getElementById("playbackHistoryModal");
+  if (!modal) return;
+  renderPlaybackHistory();
+  modal.style.display = "flex";
+}
+
+function closePlaybackHistoryModal() {
+  const modal = document.getElementById("playbackHistoryModal");
+  if (modal) modal.style.display = "none";
+}
+
+function clearPlaybackHistory() {
+  if (!confirm("确定清空播放历史？")) return;
+  try {
+    localStorage.removeItem(PLAYBACK_HISTORY_STORAGE_KEY);
+  } catch (_) {}
+  activePlaybackHistoryEntries = [];
+  renderPlaybackHistory();
+}
+
+function playPlaybackHistoryItem(index) {
+  const entry = activePlaybackHistoryEntries[index];
+  if (!entry || !ap?.list) return;
+
+  const song = {
+    id: entry.id,
+    source: entry.source,
+    name: entry.name,
+    artist: entry.artist || "",
+    album: entry.album || "",
+    cover: entry.cover || "",
+    duration: Number(entry.duration || 0) || 0,
+    extra: entry.extra || "",
+  };
+  const lyricURLs = lyricURLsForPlayback(song);
+  ap.list.clear();
+  ap.list.add([{
+    name: song.name,
+    artist: song.artist,
+    album: song.album,
+    url: buildStreamURL(song.id, song.source, song.name, song.artist, song.album, song.cover, song.extra),
+    cover: song.cover,
+    lrc: lyricURLs.line,
+    raw_lrc: lyricURLs.auto,
+    theme: "#10b981",
+    custom_id: song.id,
+    source: song.source,
+    duration: song.duration,
+    extra: song.extra,
+  }]);
+  ap.play();
+  closePlaybackHistoryModal();
 }
 
 function escapeHtml(str) {
@@ -4669,6 +4880,7 @@ ap.on("listswitch", (e) => {
 ap.on("play", () => {
   const idx = ap?.list?.index;
   const audio = typeof idx === "number" ? ap.list.audios[idx] : null;
+  rememberPlaybackHistory(audio);
   const playbackCardID = getPlaybackCardID(audio);
   if (playbackCardID) {
     currentPlayingId = playbackCardID;
@@ -5430,11 +5642,13 @@ function toggleBatchMode() {
 
   if (isBatchMode) {
     btn.innerHTML = '<i class="fa-solid fa-xmark"></i> 退出批量';
-    btn.style.color = "var(--error-color)";
+    btn.classList.add("is-active");
+    btn.setAttribute("aria-pressed", "true");
     toolbar.classList.add("active");
   } else {
     btn.innerHTML = '<i class="fa-solid fa-list-check"></i> 批量操作';
-    btn.style.color = "var(--text-sub)";
+    btn.classList.remove("is-active");
+    btn.setAttribute("aria-pressed", "false");
     toolbar.classList.remove("active");
     document
       .querySelectorAll(".song-checkbox")

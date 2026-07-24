@@ -20,34 +20,7 @@
             {{ end }}
         </div>
 
-        <div style="display:flex; gap:10px; flex-wrap: wrap; justify-content: flex-end; align-items: center;">
-            {{ if gt .TotalCount 0 }}
-            <div class="page-size-control" title="每页显示条数">
-                <select id="page-size-select" aria-label="每页条数" onchange="changePageSize(this.value)">
-                    <option value="20" {{ if eq .PageSize 20 }}selected{{ end }}>20条/页</option>
-                    <option value="30" {{ if eq .PageSize 30 }}selected{{ end }}>30条/页</option>
-                    <option value="50" {{ if eq .PageSize 50 }}selected{{ end }}>50条/页</option>
-                    <option value="100" {{ if eq .PageSize 100 }}selected{{ end }}>100条/页</option>
-                    <option value="200" {{ if eq .PageSize 200 }}selected{{ end }}>200条/页</option>
-                    <option value="300" {{ if eq .PageSize 300 }}selected{{ end }}>300条/页</option>
-                    <option value="400" {{ if eq .PageSize 400 }}selected{{ end }}>400条/页</option>
-                    <option value="500" {{ if eq .PageSize 500 }}selected{{ end }}>500条/页</option>
-                </select>
-            </div>
-            {{ end }}
-            {{ if gt .TotalCount 1 }}
-            <div class="song-sort-control" id="song-sort-control">
-                <select id="song-sort-select" aria-label="歌曲排序" onchange="setSongSortMode(this.value)">
-                    <option value="default">默认排序</option>
-                    <option value="quality">按音质</option>
-                    <option value="size">按大小</option>
-                    <option value="duration">按时长</option>
-                </select>
-                <button type="button" class="ctrl-btn sort-dir-btn" id="song-sort-direction" title="降序" onclick="toggleSongSortDirection()">
-                    <i class="fa-solid fa-arrow-down-wide-short"></i>
-                </button>
-            </div>
-            {{ end }}
+        <div class="song-list-actions">
             {{ if .ImportCollection }}
             <button type="button"
                     class="ctrl-btn primary"
@@ -66,24 +39,72 @@
             </button>
             {{ end }}
             {{ if eq .SearchType "local_music" }}
-            <label class="ctrl-btn primary" for="localMusicPageFileInput">
-                <i class="fa-solid fa-file-arrow-up"></i> 上传文件
-            </label>
-            <label class="ctrl-btn" for="localMusicPageFolderInput">
-                <i class="fa-solid fa-folder-plus"></i> 上传文件夹
-            </label>
+            <span class="local-music-upload-actions" aria-label="导入本地音乐">
+                <label class="ctrl-btn local-music-upload-button is-file" for="localMusicPageFileInput">
+                    <i class="fa-solid fa-file-arrow-up"></i> 上传文件
+                </label>
+                <label class="ctrl-btn local-music-upload-button is-folder" for="localMusicPageFolderInput">
+                    <i class="fa-solid fa-folder-plus"></i> 上传文件夹
+                </label>
+            </span>
             <input id="localMusicPageFileInput" type="file" multiple accept=".mp3,.flac,.m4a,.ogg,.wav,.wma,.aac,audio/*" onchange="uploadLocalMusicFile(this)" hidden>
             <input id="localMusicPageFolderInput" type="file" multiple webkitdirectory directory accept=".mp3,.flac,.m4a,.ogg,.wav,.wma,.aac,audio/*" onchange="uploadLocalMusicFile(this)" hidden>
-            <button type="button" class="ctrl-btn primary" onclick="checkDuplicateSongs()" title="检测重复歌曲">
-                <i class="fa-solid fa-triangle-exclamation"></i> 重复检测
-            </button>
             {{ end }}
-            <button type="button" class="ctrl-btn primary" onclick="playAllSongs()">
-                <i class="fa-solid fa-play"></i> 播放全部
-            </button>
-            <button type="button" class="ctrl-btn primary" id="btn-batch-toggle" onclick="toggleBatchMode()">
-                <i class="fa-solid fa-list-check"></i> 批量操作
-            </button>
+            <div class="song-list-tools" id="song-list-tools">
+                <button type="button" class="song-list-tools-trigger" id="song-list-tools-trigger" aria-expanded="false" aria-controls="song-list-tools-popover" onclick="toggleSongListTools(event)">
+                    <i class="fa-solid fa-sliders"></i> 列表工具 <i class="fa-solid fa-chevron-down song-list-tools-chevron"></i>
+                </button>
+                <div class="song-list-tools-popover" id="song-list-tools-popover" role="dialog" aria-label="列表工具" hidden>
+                    <div class="song-list-tools-heading">
+                        <span>列表工具</span>
+                        <span>显示与操作</span>
+                    </div>
+                    {{ if gt .TotalCount 0 }}
+                    <label class="song-list-tool-field" for="page-size-select">
+                        <span>每页显示</span>
+                        <select id="page-size-select" aria-label="每页条数" onchange="changePageSize(this.value)">
+                            <option value="20" {{ if eq .PageSize 20 }}selected{{ end }}>20条/页</option>
+                            <option value="30" {{ if eq .PageSize 30 }}selected{{ end }}>30条/页</option>
+                            <option value="50" {{ if eq .PageSize 50 }}selected{{ end }}>50条/页</option>
+                            <option value="100" {{ if eq .PageSize 100 }}selected{{ end }}>100条/页</option>
+                            <option value="200" {{ if eq .PageSize 200 }}selected{{ end }}>200条/页</option>
+                            <option value="300" {{ if eq .PageSize 300 }}selected{{ end }}>300条/页</option>
+                            <option value="400" {{ if eq .PageSize 400 }}selected{{ end }}>400条/页</option>
+                            <option value="500" {{ if eq .PageSize 500 }}selected{{ end }}>500条/页</option>
+                        </select>
+                    </label>
+                    {{ end }}
+                    {{ if gt .TotalCount 1 }}
+                    <div class="song-list-tool-field" id="song-sort-control">
+                        <span>歌曲排序</span>
+                        <div class="song-list-sort-row">
+                            <select id="song-sort-select" aria-label="歌曲排序" onchange="setSongSortMode(this.value)">
+                                <option value="default">默认排序</option>
+                                <option value="quality">按音质</option>
+                                <option value="size">按大小</option>
+                                <option value="duration">按时长</option>
+                            </select>
+                            <button type="button" class="song-list-sort-direction" id="song-sort-direction" title="降序" onclick="toggleSongSortDirection()">
+                                <i class="fa-solid fa-arrow-down-wide-short"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {{ end }}
+                    <div class="song-list-tool-actions">
+                        {{ if eq .SearchType "local_music" }}
+                        <button type="button" class="song-list-tool-action is-warning" onclick="closeSongListTools(); checkDuplicateSongs()">
+                            <i class="fa-solid fa-triangle-exclamation"></i> 重复检测
+                        </button>
+                        {{ end }}
+                        <button type="button" class="song-list-tool-action is-primary" onclick="closeSongListTools(); playAllSongs()">
+                            <i class="fa-solid fa-play"></i> 播放全部
+                        </button>
+                        <button type="button" class="song-list-tool-action" id="btn-batch-toggle" aria-pressed="false" onclick="closeSongListTools(); toggleBatchMode()">
+                            <i class="fa-solid fa-list-check"></i> 批量操作
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

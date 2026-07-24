@@ -293,7 +293,6 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 	if totalCount > 0 {
 		pageStartDisplay = pageStart + 1
 	}
-
 	c.HTML(200, "index.html", gin.H{
 		"Result":                  songs,
 		"Playlists":               playlists,

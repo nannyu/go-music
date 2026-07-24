@@ -26,7 +26,7 @@
     <div class="download-panel-footer" id="download-panel-footer"></div>
 </div>
 
-<!-- 右侧工具栏 -->
+<!-- 右侧工具栏：设置、历史和本地音乐在所有页面均可使用 -->
 <div class="right-toolbar">
     <!-- 功能按钮组 -->
     <div class="rt-btn" onclick="openSystemConfig()" title="系统配置"><i class="fa-solid fa-gear"></i></div>
@@ -35,13 +35,16 @@
     </form>
     <div class="rt-btn" onclick="openLocalMusicPage()" title="本地音乐"><i class="fa-solid fa-folder-plus"></i></div>
     <div class="rt-btn" onclick="openDownloadRecordsModal()" title="下载记录"><i class="fa-solid fa-clock-rotate-left"></i></div>
+    <div class="rt-btn" onclick="openPlaybackHistoryModal()" title="播放历史"><i class="fa-solid fa-clock"></i></div>
 
+    {{ if or (gt .TotalPages 1) (eq .SearchType "local_music") }}
     <div class="rt-separator"></div>
 
     <!-- 翻页按钮组 -->
     <div class="rt-btn" onclick="floatPageUp()" title="上一页"><i class="fa-solid fa-chevron-up"></i></div>
     <div class="rt-page-num" id="float-page-num" onclick="floatPageNumClick()">1</div>
     <div class="rt-btn" onclick="floatPageDown()" title="下一页"><i class="fa-solid fa-chevron-down"></i></div>
+    {{ end }}
 
     <div class="rt-separator"></div>
 

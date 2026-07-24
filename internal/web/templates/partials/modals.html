@@ -248,27 +248,57 @@
     </div>
 </div>
 <!-- 下载记录弹窗 -->
-<div id="downloadRecordsModal" class="modal-overlay" style="z-index: 1009;">
-    <div class="modal" style="max-width: 700px;">
+<div id="downloadRecordsModal" class="modal-overlay utility-modal-overlay">
+    <div class="modal utility-modal download-records-modal">
         <div class="modal-header">
-            <h3><i class="fa-solid fa-clock-rotate-left"></i> 下载记录</h3>
+            <div>
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> 下载记录</h3>
+                <p class="download-records-subtitle">最近的下载、跳过和失败记录</p>
+            </div>
             <div class="modal-close" onclick="closeDownloadRecordsModal()"><i class="fa-solid fa-xmark"></i></div>
         </div>
         <div class="modal-body">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <span id="download-records-count" style="font-size: 13px; color: var(--text-sub);">加载中...</span>
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn-pill" onclick="openLocalMusicPage()" style="font-size: 12px; padding: 4px 10px;">
+            <div class="utility-modal-toolbar download-records-toolbar">
+                <span id="download-records-count" class="utility-modal-count download-records-count">加载中...</span>
+                <div class="utility-modal-actions download-records-actions">
+                    <button type="button" class="btn-pill" onclick="openLocalMusicPage()">
                         <i class="fa-solid fa-folder-plus"></i> 本地音乐
                     </button>
-                    <button class="btn-pill btn-pill-danger" onclick="clearDownloadRecords()" style="font-size: 12px; padding: 4px 10px;">
+                    <button type="button" class="btn-pill btn-pill-danger" onclick="clearDownloadRecords()">
                         <i class="fa-solid fa-trash-can"></i> 清空记录
                     </button>
                 </div>
             </div>
-            <div id="download-records-list" style="max-height: 400px; overflow-y: auto;"></div>
-            <div style="margin-top: 12px; display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div id="download-records-list" class="utility-modal-list download-records-list"></div>
+            <div class="utility-modal-footer download-records-footer">
                 <button type="button" class="btn-pill" onclick="closeDownloadRecordsModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 播放历史弹窗 -->
+<div id="playbackHistoryModal" class="modal-overlay utility-modal-overlay">
+    <div class="modal utility-modal playback-history-modal">
+        <div class="modal-header">
+            <div>
+                <h3><i class="fa-solid fa-clock"></i> 播放历史</h3>
+                <p class="utility-modal-subtitle">此设备最近播放过的歌曲</p>
+            </div>
+            <div class="modal-close" onclick="closePlaybackHistoryModal()"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+        <div class="modal-body">
+            <div class="utility-modal-toolbar">
+                <span id="playback-history-count" class="utility-modal-count">暂无播放记录</span>
+                <div class="utility-modal-actions">
+                    <button type="button" class="btn-pill btn-pill-danger" onclick="clearPlaybackHistory()">
+                        <i class="fa-solid fa-trash-can"></i> 清空历史
+                    </button>
+                </div>
+            </div>
+            <div id="playback-history-list" class="utility-modal-list playback-history-list"></div>
+            <div class="utility-modal-footer">
+                <button type="button" class="btn-pill" onclick="closePlaybackHistoryModal()">关闭</button>
             </div>
         </div>
     </div>

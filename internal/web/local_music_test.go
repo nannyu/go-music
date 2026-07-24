@@ -274,6 +274,13 @@ func TestLocalMusicPageRendersSongListWithoutUnsupportedActions(t *testing.T) {
 	required := []string{
 		`id="localMusicPageList"`,
 		`data-local-music-page="true"`,
+		`class="local-music-upload-actions"`,
+		`class="ctrl-btn local-music-upload-button is-file"`,
+		`class="ctrl-btn local-music-upload-button is-folder"`,
+		`id="song-list-tools-popover"`,
+		`重复检测`,
+		`播放全部`,
+		`批量操作`,
 		`id="localMusicPageFileInput"`,
 		`id="localMusicPageFolderInput"`,
 		`webkitdirectory directory`,
@@ -356,6 +363,9 @@ func TestManualCollectionLocalSongRendersLocalActionOrder(t *testing.T) {
 	}
 
 	body := rec.Body.String()
+	if !strings.Contains(body, `class="right-toolbar"`) {
+		t.Fatalf("song detail should retain the global right toolbar: %s", body)
+	}
 	cardStart := strings.Index(body, `data-id="`+localID+`"`)
 	if cardStart < 0 {
 		t.Fatalf("rendered body missing local song card: %s", body)

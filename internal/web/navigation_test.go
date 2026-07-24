@@ -69,6 +69,34 @@ func TestRenderIndexPlaylistCardsUseAjaxNavigation(t *testing.T) {
 	}
 }
 
+func TestRemotePlaylistDetailKeepsGlobalRightToolbar(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.SetHTMLTemplate(newTestTemplate(t))
+	router.GET(RoutePrefix+"/playlist", func(c *gin.Context) {
+		renderIndex(c, []model.Song{{ID: "song-1", Name: "Song One", Artist: "Artist", Source: "qq"}}, nil, "", []string{"qq"}, "", "playlist", "", "", "", false, "", nil)
+	})
+
+	req := httptest.NewRequest("GET", RoutePrefix+"/playlist", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `class="right-toolbar"`) {
+		t.Fatalf("remote playlist detail should retain the global right toolbar: %s", body)
+	}
+	if !strings.Contains(body, `onclick="openSystemConfig()"`) {
+		t.Fatalf("remote playlist detail should retain system settings access: %s", body)
+	}
+	if !strings.Contains(body, `onclick="openPlaybackHistoryModal()"`) {
+		t.Fatalf("remote playlist detail should retain playback history access: %s", body)
+	}
+}
+
 func TestAppJSIncludesAjaxNavigationEntryPoints(t *testing.T) {
 	content, err := templateFS.ReadFile("templates/static/js/app.js")
 	if err != nil {
@@ -81,6 +109,12 @@ func TestAppJSIncludesAjaxNavigationEntryPoints(t *testing.T) {
 	}
 	if !strings.Contains(js, "function bindPageNavigationEvents()") {
 		t.Fatal("app.js missing bindPageNavigationEvents function")
+	}
+	if !strings.Contains(js, "function syncRightToolbar(nextDoc, currentContainer)") {
+		t.Fatal("app.js missing right toolbar synchronization for AJAX navigation")
+	}
+	if !strings.Contains(js, "syncRightToolbar(nextDoc, currentContainer);") {
+		t.Fatal("app.js does not synchronize the right toolbar during AJAX navigation")
 	}
 	if !strings.Contains(js, "function handlePaginationShortcut(event)") {
 		t.Fatal("app.js missing pagination shortcut handler")
@@ -137,8 +171,40 @@ func TestAppJSIncludesAjaxNavigationEntryPoints(t *testing.T) {
 	if !strings.Contains(js, "function initializeLocalMusicPage(root = document)") {
 		t.Fatal("app.js missing async local music page initializer")
 	}
+	for _, want := range []string{
+		"function toggleSongListTools(event)",
+		"function openPlaybackHistoryModal()",
+		"function rememberPlaybackHistory(audio)",
+		"rememberPlaybackHistory(audio);",
+		"const PLAYBACK_HISTORY_STORAGE_KEY = \"musicdl:playback-history\";",
+		"modal-overlay utility-modal-overlay is-open",
+	} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("app.js missing %q", want)
+		}
+	}
 	if !strings.Contains(js, "offset: String(offset)") {
 		t.Fatal("app.js missing paged local music API request")
+	}
+}
+
+func TestUtilityModalsShareCompactStructure(t *testing.T) {
+	content, err := templateFS.ReadFile("templates/partials/modals.html")
+	if err != nil {
+		t.Fatalf("ReadFile(modals.html): %v", err)
+	}
+
+	modals := string(content)
+	for _, want := range []string{
+		`id="downloadRecordsModal" class="modal-overlay utility-modal-overlay"`,
+		`class="modal utility-modal download-records-modal"`,
+		`id="playbackHistoryModal" class="modal-overlay utility-modal-overlay"`,
+		`class="modal utility-modal playback-history-modal"`,
+		`id="playback-history-list" class="utility-modal-list playback-history-list"`,
+	} {
+		if !strings.Contains(modals, want) {
+			t.Fatalf("modals.html missing %q", want)
+		}
 	}
 }
 
