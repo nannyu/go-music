@@ -247,33 +247,6 @@
         </div>
     </div>
 </div>
-<div id="localMusicModal" class="modal-overlay" style="z-index: 1006;">
-    <div class="modal local-music-modal">
-        <div class="modal-header">
-            <div>
-                <h3>导入本地音乐</h3>
-                <p class="local-music-subtitle">选择音频文件或整个文件夹，导入后会加入本地曲库。</p>
-            </div>
-            <div class="modal-close" onclick="closeLocalMusicModal()"><i class="fa-solid fa-xmark"></i></div>
-        </div>
-        <div class="modal-body">
-            <div class="local-music-toolbar">
-                <div class="local-music-dir" id="localMusicDir">下载目录：-</div>
-                <label class="btn-pill btn-pill-primary local-upload-btn" for="localMusicFileInput">
-                    <i class="fa-solid fa-file-arrow-up"></i> 选择文件
-                </label>
-                <label class="btn-pill local-upload-btn" for="localMusicFolderInput">
-                    <i class="fa-solid fa-folder-plus"></i> 选择文件夹
-                </label>
-                <input id="localMusicFileInput" type="file" multiple accept=".mp3,.flac,.m4a,.ogg,.wav,.wma,.aac,audio/*" onchange="uploadLocalMusicFile(this)" hidden>
-                <input id="localMusicFolderInput" type="file" multiple webkitdirectory accept=".mp3,.flac,.m4a,.ogg,.wav,.wma,.aac,audio/*" onchange="uploadLocalMusicFile(this)" hidden>
-            </div>
-            <div id="localMusicHint" class="local-music-hint">正在加载本地音乐...</div>
-            <div id="localMusicList" class="local-music-list"></div>
-        </div>
-    </div>
-</div>
-
 <!-- 下载记录弹窗 -->
 <div id="downloadRecordsModal" class="modal-overlay" style="z-index: 1009;">
     <div class="modal" style="max-width: 700px;">
@@ -285,8 +258,8 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <span id="download-records-count" style="font-size: 13px; color: var(--text-sub);">加载中...</span>
                 <div style="display: flex; gap: 8px;">
-                    <button class="btn-pill" onclick="openLocalMusicModal()" style="font-size: 12px; padding: 4px 10px;">
-                        <i class="fa-solid fa-folder-plus"></i> 导入本地音乐
+                    <button class="btn-pill" onclick="openLocalMusicPage()" style="font-size: 12px; padding: 4px 10px;">
+                        <i class="fa-solid fa-folder-plus"></i> 本地音乐
                     </button>
                     <button class="btn-pill btn-pill-danger" onclick="clearDownloadRecords()" style="font-size: 12px; padding: 4px 10px;">
                         <i class="fa-solid fa-trash-can"></i> 清空记录

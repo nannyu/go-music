@@ -274,8 +274,11 @@ func TestLocalMusicPageRendersSongListWithoutUnsupportedActions(t *testing.T) {
 	required := []string{
 		`id="localMusicPageList"`,
 		`data-local-music-page="true"`,
-		`onclick="openLocalMusicModal()"`,
-		`导入本地音乐`,
+		`id="localMusicPageFileInput"`,
+		`id="localMusicPageFolderInput"`,
+		`webkitdirectory directory`,
+		`onchange="uploadLocalMusicFile(this)"`,
+		`上传文件夹`,
 		`id="btn-batch-delete-local"`,
 		`onclick="batchDeleteLocalMusic()"`,
 		`data-source="local"`,
@@ -297,6 +300,7 @@ func TestLocalMusicPageRendersSongListWithoutUnsupportedActions(t *testing.T) {
 	}
 
 	forbidden := []string{
+		`onclick="openLocalMusicModal()"`,
 		`class="btn-circle btn-switch"`,
 		`class="btn-circle btn-dl btn-download"`,
 		`id="btn-batch-switch"`,
@@ -1217,6 +1221,20 @@ func TestLocalMusicClientQueuesPageChangesAndRefreshesAfterDuplicateDeletion(t *
 	}
 	if strings.Contains(js, "async function reindexLocalMusic()") {
 		t.Fatal("manual reindex control should not remain in the client")
+	}
+}
+
+func TestFloatingPaginationUsesLocalMusicPagePaginationBar(t *testing.T) {
+	content, err := templateFS.ReadFile("templates/static/js/app.js")
+	if err != nil {
+		t.Fatalf("read app.js: %v", err)
+	}
+	js := string(content)
+	if strings.Count(js, `getElementById("localMusicPagePagination")`) < 4 {
+		t.Fatal("floating pagination should read the same local music pagination bar that the page renders")
+	}
+	if strings.Contains(js, `getElementById("local-music-pagination")`) {
+		t.Fatal("floating pagination should not reference the obsolete local music pagination ID")
 	}
 }
 

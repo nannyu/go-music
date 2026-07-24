@@ -3533,7 +3533,7 @@ function updateFloatPageNav() {
 
   // 本地音乐页
   if (isLocalMusicPageActive()) {
-    const bar = document.getElementById("local-music-pagination");
+    const bar = document.getElementById("localMusicPagePagination");
     if (!bar) {
       setFloatPageNumber(numEl, 1);
       return;
@@ -3568,7 +3568,7 @@ function getRenderedSearchPageInfo() {
 
 function floatPageUp() {
   if (isLocalMusicPageActive()) {
-    const bar = document.getElementById("local-music-pagination");
+    const bar = document.getElementById("localMusicPagePagination");
     if (!bar) return;
     const cur = parseInt(bar.dataset.currentPage, 10);
     if (cur > 1) goToPage(cur - 1);
@@ -3580,14 +3580,14 @@ function floatPageUp() {
 
 function floatPageDown() {
   if (isLocalMusicPageActive()) {
-    const bar = document.getElementById("local-music-pagination");
+    const bar = document.getElementById("localMusicPagePagination");
     if (!bar) return;
     const cur = parseInt(bar.dataset.currentPage, 10);
     const total = parseInt(bar.dataset.totalPages, 10);
     if (cur < total) goToPage(cur + 1);
   } else {
     const { current, total } = getRenderedSearchPageInfo();
-    if (!total || current < total) goToPage(current + 1);
+    if (total && current < total) goToPage(current + 1);
   }
 }
 
@@ -3595,6 +3595,11 @@ function floatPageDown() {
 function floatPageNumClick() {
   const numEl = document.getElementById("float-page-num");
   if (!numEl) return;
+  if (isLocalMusicPageActive()) {
+    if (!document.getElementById("localMusicPagePagination")) return;
+  } else if (!getRenderedSearchPageInfo().total) {
+    return;
+  }
   const currentVal = numEl.textContent.trim();
   // 如果已经是输入框则忽略
   if (numEl.tagName === "INPUT") return;
@@ -6159,6 +6164,14 @@ function renderLocalMusicList(payload, append = false) {
   }
 }
 
+function setLocalMusicUploadHint(message, isError = false) {
+  if (isLocalMusicPageActive()) {
+    setLocalMusicPageHint(message, isError);
+    return;
+  }
+  setLocalMusicHint(message, isError);
+}
+
 async function uploadLocalMusicFile(input) {
   if (!input || !input.files || input.files.length === 0) return;
 
@@ -6170,7 +6183,7 @@ async function uploadLocalMusicFile(input) {
   const ignoredCount = input.files.length - files.length;
   if (files.length === 0) {
     input.value = "";
-    setLocalMusicHint("所选内容中没有可导入的音频文件。", true);
+    setLocalMusicUploadHint("所选内容中没有可导入的音频文件。", true);
     return;
   }
 
@@ -6178,7 +6191,7 @@ async function uploadLocalMusicFile(input) {
   let imported = 0;
   try {
     for (const [index, file] of files.entries()) {
-      setLocalMusicHint(`正在导入 ${index + 1} / ${files.length}：${file.webkitRelativePath || file.name}`);
+      setLocalMusicUploadHint(`正在导入 ${index + 1} / ${files.length}：${file.webkitRelativePath || file.name}`);
       const formData = new FormData();
       formData.append("file", file);
 
@@ -6197,15 +6210,14 @@ async function uploadLocalMusicFile(input) {
       }
     }
 
-    await refreshLocalMusicList();
     if (isLocalMusicPageActive()) {
-      await refreshCurrentPageContent({ scroll: false });
+      await refreshLocalMusicPageAfterMutation();
     }
     const ignoredText = ignoredCount > 0 ? `，忽略 ${ignoredCount} 个非音频文件` : "";
     if (failures.length > 0) {
-      setLocalMusicHint(`已导入 ${imported} 首${ignoredText}，${failures.length} 首失败：${failures[0]}`, true);
+      setLocalMusicUploadHint(`已导入 ${imported} 首${ignoredText}，${failures.length} 首失败：${failures[0]}`, true);
     } else {
-      setLocalMusicHint(`已导入 ${imported} 首${ignoredText}。`);
+      setLocalMusicUploadHint(`已导入 ${imported} 首${ignoredText}。`);
     }
   } finally {
     input.value = "";
@@ -6361,6 +6373,7 @@ function openCollectionManager() {
 }
 
 function openLocalMusicPage() {
+  closeDownloadRecordsModal();
   navigateTo(API_ROOT + "/local_music_page");
 }
 
