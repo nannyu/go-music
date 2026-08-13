@@ -680,6 +680,12 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 				return
 			}
 			urlStr = info.URL
+		} else if src == "qq" {
+			urlStr, err = core.GetQQPlaybackURL(&model.Song{ID: id, Source: src, Extra: extra})
+			if err != nil || urlStr == "" {
+				c.JSON(200, gin.H{"valid": false})
+				return
+			}
 		} else {
 			fn := core.GetDownloadFunc(src)
 			if fn == nil {
@@ -877,13 +883,18 @@ func RegisterMusicRoutes(api *gin.RouterGroup) {
 			return
 		}
 
-		dlFunc := core.GetDownloadFunc(source)
-		if dlFunc == nil {
-			c.String(400, "Unknown source")
-			return
+		var downloadUrl string
+		var err error
+		if streamPlayback && source == "qq" {
+			downloadUrl, err = core.GetQQPlaybackURL(tempSong)
+		} else {
+			dlFunc := core.GetDownloadFunc(source)
+			if dlFunc == nil {
+				c.String(400, "Unknown source")
+				return
+			}
+			downloadUrl, err = dlFunc(tempSong)
 		}
-
-		downloadUrl, err := dlFunc(tempSong)
 		if err != nil {
 			c.String(404, "Failed to get URL")
 			return
